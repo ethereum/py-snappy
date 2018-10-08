@@ -1,7 +1,7 @@
-<PROJECT_NAME>
+py-snappy
 ==============================
 
-<SHORT_DESCRIPTION>
+A pure python implementation of the Snappy compression algorithm
 
 Contents
 --------
@@ -9,7 +9,7 @@ Contents
 .. toctree::
     :maxdepth: 3
 
-    <MODULE_NAME>
+    py_snappy
     releases
 
 

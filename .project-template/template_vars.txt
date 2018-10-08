@@ -1,6 +1,6 @@
-<MODULE_NAME>
-<PYPI_NAME>
-<REPO_NAME>
-<RTD_NAME>
-<PROJECT_NAME>
-<SHORT_DESCRIPTION>
+py_snappy
+py-snappy
+py-snappy
+py-snappy
+py-snappy
+A pure python implementation of the Snappy compression algorithm
