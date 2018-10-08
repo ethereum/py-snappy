@@ -159,11 +159,13 @@ def decompress(buf: bytes) -> bytes:
             if length > len(dst) - d or length > src_len - s:
                 raise CorruptError
 
-            dst = list(itertools.chain(  # noqa: E203
-                dst[:d],
-                src[s : s + length],  # noqa: E203
-                dst[d + length :],  # noqa: E203
-            ))
+            dst = list(
+                itertools.chain(  # noqa: E203
+                    dst[:d],
+                    src[s : s + length],  # noqa: E203
+                    dst[d + length :],  # noqa: E203
+                )
+            )
             d += length
             s += length
             continue
@@ -268,7 +270,7 @@ C24 = 32 - 8
 MAX_TABLE_SIZE = 1 << 14
 
 
-@tuple_gen
+@bytes_gen
 def compress(buf: bytes) -> Iterable[int]:
     """compress returns the compressed form of buf."""
     src = tuple(buf)
@@ -308,12 +310,12 @@ def compress(buf: bytes) -> Iterable[int]:
         t, table[p] = table[p] - 1, s + 1
 
         if (
-                t < 0
-                or s - t >= MAX_OFFSET  # noqa: W503
-                or b0 != src[t]  # noqa: W503
-                or b1 != src[t + 1]  # noqa: W503
-                or b2 != src[t + 2]  # noqa: W503
-                or b3 != src[t + 3]  # noqa: W503
+            t < 0
+            or s - t >= MAX_OFFSET  # noqa: W503
+            or b0 != src[t]  # noqa: W503
+            or b1 != src[t + 1]  # noqa: W503
+            or b2 != src[t + 2]  # noqa: W503
+            or b3 != src[t + 3]  # noqa: W503
         ):
             # If t is invalid or src[s:s+4] differs from src[t:t+4], accumulate a literal byte.
             s += 1

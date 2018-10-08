@@ -11,6 +11,7 @@ extras_require = {
         "pytest-xdist",
         "tox>=2.9.1,<3",
         "hypothesis==3.74.3",
+        "python-snappy>=0.5.3,<1",
     ],
     'lint': [
         "flake8==3.4.1",
