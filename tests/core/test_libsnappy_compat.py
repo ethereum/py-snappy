@@ -1,12 +1,7 @@
 from hypothesis import given, settings, strategies as st
 
 from py_snappy import compress, decompress, BaseSnappyError
-from snappy import (
-    compress as libsnappy_compress,
-    decompress as libsnappy_decompress,
-    UncompressError,
-)
-
+from snappy import compress as libsnappy_compress, decompress as libsnappy_decompress, UncompressError
 try:
     from snappy._snappy import CompressedLengthError
 except ImportError:
@@ -35,15 +30,18 @@ def test_libsnappy_decompress_local_compressed(value):
     assert value == result
 
 
-LIB_SNAPPY_ERRORS = (CompressedLengthError, UncompressError)
+LIB_SNAPPY_ERRORS = (CompressedLengthError, UncompressError,)
 PY_SNAPPY_ERRORS = (BaseSnappyError,)
 
 
 #
 # Error cases
 #
-@given(value=st.binary(min_size=1, max_size=2 * MEGABYTE))
-@settings(max_examples=1000, deadline=None)  # takes a long time.
+@given(value=st.binary(min_size=1, max_size=MEGABYTE // 2))
+@settings(
+    max_examples=1000,
+    deadline=1000,  # takes a long time.
+)
 def test_decompress_error_parity(value):
     try:
         py_result = decompress(value)
