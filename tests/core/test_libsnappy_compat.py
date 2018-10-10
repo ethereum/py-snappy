@@ -1,4 +1,4 @@
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
 
 from py_snappy import compress, decompress, BaseSnappyError
 from snappy import (
@@ -13,13 +13,16 @@ except ImportError:
     CompressedLengthError = None
 
 
-MEGABYTE = 1000000
+from tests.core.strategies import (
+    random_test_vectors_large_st,
+    random_test_vectors_small_st,
+)
 
 
 #
 # Round trip value -> compress() -> decompress()
 #
-@given(value=st.binary(min_size=1, max_size=2 * MEGABYTE))
+@given(value=random_test_vectors_large_st)
 @settings(max_examples=1000)
 def test_local_decompress_libsnappy_compressed(value):
     intermediate = libsnappy_compress(value)
@@ -27,7 +30,7 @@ def test_local_decompress_libsnappy_compressed(value):
     assert value == result
 
 
-@given(value=st.binary(min_size=1, max_size=2 * MEGABYTE))
+@given(value=random_test_vectors_large_st)
 @settings(max_examples=1000)
 def test_libsnappy_decompress_local_compressed(value):
     intermediate = compress(value)
@@ -39,11 +42,18 @@ LIB_SNAPPY_ERRORS = (CompressedLengthError, UncompressError)
 PY_SNAPPY_ERRORS = (BaseSnappyError,)
 
 
+def pass_fail(v):
+    if v:
+        return "pass"
+    else:
+        return "fail"
+
+
 #
 # Error cases
 #
-@given(value=st.binary(min_size=1, max_size=MEGABYTE // 2))
-@settings(max_examples=400, deadline=None)  # takes a long time.
+@given(value=random_test_vectors_small_st)
+@settings(max_examples=100, deadline=None)  # takes a long time.
 def test_decompress_error_parity(value):
     try:
         py_result = decompress(value)
@@ -61,5 +71,9 @@ def test_decompress_error_parity(value):
 
     if py_snappy_error and lib_snappy_error:
         pass
-    if not py_snappy_error and not lib_snappy_error:
+    elif not py_snappy_error and not lib_snappy_error:
         assert lib_result == py_result
+    else:
+        raise AssertionError(
+            f"behavioral mismatch: py_snappy: {pass_fail(py_snappy_error)}  lib-snappy: {pass_fail(lib_snappy_error)}"  # noqa: E501
+        )
