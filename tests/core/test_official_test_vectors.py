@@ -4,7 +4,11 @@ import pytest
 
 import py_snappy
 from py_snappy import BaseSnappyError, compress, decompress
-from snappy import decompress as libsnappy_decompress, UncompressError
+from snappy import (
+    compress as libsnappy_compress,
+    decompress as libsnappy_decompress,
+    UncompressError,
+)
 
 
 BASE_DIR = Path(py_snappy.__file__).resolve().parent.parent
@@ -34,9 +38,26 @@ FIXTURES_TO_COMPRESS = (
 
 
 @pytest.mark.parametrize("fixture_name", FIXTURES_TO_COMPRESS)
-def test_compression_of_official_test_fixtures(fixture_name):
+def test_compression_round_trip_of_official_test_fixtures(fixture_name):
     fixture_data = load_fixture(fixture_name)
-    actual = decompress(compress(fixture_data))
+    intermediate = compress(fixture_data)
+    actual = decompress(intermediate)
+    assert fixture_data == actual
+
+
+@pytest.mark.parametrize("fixture_name", FIXTURES_TO_COMPRESS)
+def test_decompress_libsnappy_compressed_test_fixture(fixture_name):
+    fixture_data = load_fixture(fixture_name)
+    intermediate = libsnappy_compress(fixture_data)
+    actual = decompress(intermediate)
+    assert fixture_data == actual
+
+
+@pytest.mark.parametrize("fixture_name", FIXTURES_TO_COMPRESS)
+def test_libsnapp_decompress_compressed_test_fixture(fixture_name):
+    fixture_data = load_fixture(fixture_name)
+    intermediate = compress(fixture_data)
+    actual = libsnappy_decompress(intermediate)
     assert fixture_data == actual
 
 
