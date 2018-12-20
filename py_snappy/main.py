@@ -134,15 +134,18 @@ def decompress(buf: bytes) -> bytes:
                 length_header_size += 3
                 if length_header_size > src_len:
                     raise CorruptError
-                literal_length = src[length_header_size - 2] |\
-                    (src[length_header_size - 1] << 8)
+                literal_length = src[length_header_size - 2] | (
+                    src[length_header_size - 1] << 8
+                )
             elif literal_length == 62:
                 length_header_size += 4
                 if length_header_size > src_len:
                     raise CorruptError
-                literal_length = src[length_header_size - 3] |\
-                    (src[length_header_size - 2] << 8) |\
-                    (src[length_header_size - 1] << 16)
+                literal_length = (
+                    src[length_header_size - 3]
+                    | (src[length_header_size - 2] << 8)  # noqa: W503
+                    | (src[length_header_size - 1] << 16)  # noqa: W503
+                )
             elif literal_length == 63:
                 length_header_size += 5
                 if length_header_size > src_len:
@@ -178,16 +181,16 @@ def decompress(buf: bytes) -> bytes:
             if length_header_size > src_len:
                 raise CorruptError
             length = 4 + ((src[length_header_size - 2] >> 2) & 0x7)
-            offset = ((src[length_header_size - 2] & 0xE0) << 3) |\
-                src[length_header_size - 1]
+            offset = ((src[length_header_size - 2] & 0xE0) << 3) | src[
+                length_header_size - 1
+            ]
 
         elif elem_type == TAG_COPY2:
             length_header_size += 3
             if length_header_size > src_len:
                 raise CorruptError
             length = 1 + (src[length_header_size - 3] >> 2)
-            offset = src[length_header_size - 2] |\
-                (src[length_header_size - 1] << 8)
+            offset = src[length_header_size - 2] | (src[length_header_size - 1] << 8)
 
         elif elem_type == TAG_COPY4:
             raise BaseSnappyError("Unsupported COPY_4 tag")
@@ -258,8 +261,7 @@ def emit_copy(offset: int, length: int) -> Iterable[int]:
     while length > 0:
         x = length - 4
         if 0 <= x and x < C8 and offset < C2048:
-            yield ((uint8(offset >> 8) & 0x07) << 5) | (uint8(x) << 2) |\
-                TAG_COPY1
+            yield ((uint8(offset >> 8) & 0x07) << 5) | (uint8(x) << 2) | TAG_COPY1
             yield uint8(offset)
             break
 
@@ -306,8 +308,9 @@ def compress(buf: bytes) -> Iterable[int]:
     while iter_pos + 3 < src_len:
         # Update the hash table.
         b0, b1, b2, b3 = src[iter_pos : iter_pos + 4]  # noqa: E203
-        hash_code = uint32(b0) | (uint32(b1) << 8) | (uint32(b2) << 16) |\
-            (uint32(b3) << 24)
+        hash_code = (
+            uint32(b0) | (uint32(b1) << 8) | (uint32(b2) << 16) | (uint32(b3) << 24)
+        )
         hash_bucket = uint32(hash_code * 0x1E35A7BD) >> shift
 
         # We need to to store values in [-1, inf) in table. To save
