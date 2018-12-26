@@ -50,14 +50,14 @@ def uvarint(buf: bytes) -> Tuple[int, int]:
     n == 0: buf too small
     n  < 0: value larger than 64 bits (overflow)
             and -n is the number of bytes read"""
-    x, s = 0, 0
-    for idx, b in enumerate(buf):
-        if b < 0x80:
-            if idx > 9 or (idx == 9 and b > 1):
-                return 0, -1 * (idx + 1)  # overflow
-            return x | uint64(b) << s, idx + 1
-        x |= uint64(b & 0x7F) << s
-        s += 7
+    value, num_bytes_read = 0, 0
+    for buf_pos, current_byte in enumerate(buf):
+        if current_byte < 0x80:
+            if buf_pos > 9 or (buf_pos == 9 and current_byte > 1):
+                return 0, -1 * (buf_pos + 1)  # overflow
+            return value | uint64(current_byte) << num_bytes_read, buf_pos + 1
+        value |= uint64(current_byte & 0x7F) << num_bytes_read
+        num_bytes_read += 7
     return 0, 0
 
 
@@ -99,7 +99,7 @@ def extract_meta(src: bytes) -> Tuple[int, int]:
 
     - the length of the decoded block
     - the number of bytes that the length header occupied.
-  """
+    """
     value, num_bytes = uvarint(src)
     if num_bytes <= 0 or value > 0xFFFFFFFF:
         raise CorruptError
