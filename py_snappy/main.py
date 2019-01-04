@@ -50,14 +50,14 @@ def uvarint(buf: bytes) -> Tuple[int, int]:
     n == 0: buf too small
     n  < 0: value larger than 64 bits (overflow)
             and -n is the number of bytes read"""
-    x, s = 0, 0
-    for idx, b in enumerate(buf):
-        if b < 0x80:
-            if idx > 9 or (idx == 9 and b > 1):
-                return 0, -1 * (idx + 1)  # overflow
-            return x | uint64(b) << s, idx + 1
-        x |= uint64(b & 0x7F) << s
-        s += 7
+    value, num_bytes_read = 0, 0
+    for buf_pos, current_byte in enumerate(buf):
+        if current_byte < 0x80:
+            if buf_pos > 9 or (buf_pos == 9 and current_byte > 1):
+                return 0, -1 * (buf_pos + 1)  # overflow
+            return value | uint64(current_byte) << num_bytes_read, buf_pos + 1
+        value |= uint64(current_byte & 0x7F) << num_bytes_read
+        num_bytes_read += 7
     return 0, 0
 
 
@@ -99,92 +99,100 @@ def extract_meta(src: bytes) -> Tuple[int, int]:
 
     - the length of the decoded block
     - the number of bytes that the length header occupied.
-  """
-    v, n = uvarint(src)
-    if n <= 0 or v > 0xFFFFFFFF:
+    """
+    value, num_bytes = uvarint(src)
+    if num_bytes <= 0 or value > 0xFFFFFFFF:
         raise CorruptError
-    if v > 0x7FFFFFFF:
+    if value > 0x7FFFFFFF:
         raise TooLargeError
-    return v, n
+    return value, num_bytes
 
 
 def decompress(buf: bytes) -> bytes:
     """
     decompress returns the decompressed form of buf.
     """
-    block_length, s = extract_meta(buf)
+    block_length, length_header_size = extract_meta(buf)
     src = tuple(c for c in buf)
     src_len = len(src)
     dst = [0] * block_length
     d, offset, length = 0, 0, 0
 
-    while s < src_len:
-        b = src[s] & 0x03
-        if b == TAG_LITERAL:
-            x = src[s] >> 2
+    while length_header_size < src_len:
+        elem_type = src[length_header_size] & 0x03
+        if elem_type == TAG_LITERAL:
+            literal_length = src[length_header_size] >> 2
 
-            if x < 60:
-                s += 1
-            elif x == 60:
-                s += 2
-                if s > src_len:
+            if literal_length < 60:
+                length_header_size += 1
+            elif literal_length == 60:
+                length_header_size += 2
+                if length_header_size > src_len:
                     raise CorruptError
-                x = src[s - 1]
-            elif x == 61:
-                s += 3
-                if s > src_len:
+                literal_length = src[length_header_size - 1]
+            elif literal_length == 61:
+                length_header_size += 3
+                if length_header_size > src_len:
                     raise CorruptError
-                x = src[s - 2] | (src[s - 1] << 8)
-            elif x == 62:
-                s += 4
-                if s > src_len:
+                literal_length = src[length_header_size - 2] | (
+                    src[length_header_size - 1] << 8
+                )
+            elif literal_length == 62:
+                length_header_size += 4
+                if length_header_size > src_len:
                     raise CorruptError
-                x = src[s - 3] | (src[s - 2] << 8) | (src[s - 1] << 16)
-            elif x == 63:
-                s += 5
-                if s > src_len:
+                literal_length = (
+                    src[length_header_size - 3]
+                    | (src[length_header_size - 2] << 8)  # noqa: W503
+                    | (src[length_header_size - 1] << 16)  # noqa: W503
+                )
+            elif literal_length == 63:
+                length_header_size += 5
+                if length_header_size > src_len:
                     raise CorruptError
 
-                x = (
-                    src[s - 4]
-                    | (src[s - 3] << 8)  # noqa: W503
-                    | (src[s - 2] << 16)  # noqa: W503
-                    | (src[s - 1] << 24)  # noqa: W503
+                literal_length = (
+                    src[length_header_size - 4]
+                    | (src[length_header_size - 3] << 8)  # noqa: W503
+                    | (src[length_header_size - 2] << 16)  # noqa: W503
+                    | (src[length_header_size - 1] << 24)  # noqa: W503
                 )
 
-            length = x + 1
+            length = literal_length + 1
 
             if length <= 0:
                 raise BaseSnappyError("Unsupported literal length")
-            if length > len(dst) - d or length > src_len - s:
+            if length > len(dst) - d or length > src_len - length_header_size:
                 raise CorruptError
 
             dst = list(
                 itertools.chain(  # noqa: E203
                     dst[:d],
-                    src[s : s + length],  # noqa: E203
+                    src[length_header_size : length_header_size + length],  # noqa: E203
                     dst[d + length :],  # noqa: E203
                 )
             )
             d += length
-            s += length
+            length_header_size += length
             continue
 
-        elif b == TAG_COPY1:
-            s += 2
-            if s > src_len:
+        elif elem_type == TAG_COPY1:
+            length_header_size += 2
+            if length_header_size > src_len:
                 raise CorruptError
-            length = 4 + ((src[s - 2] >> 2) & 0x7)
-            offset = ((src[s - 2] & 0xE0) << 3) | src[s - 1]
+            length = 4 + ((src[length_header_size - 2] >> 2) & 0x7)
+            offset = ((src[length_header_size - 2] & 0xE0) << 3) | src[
+                length_header_size - 1
+            ]
 
-        elif b == TAG_COPY2:
-            s += 3
-            if s > src_len:
+        elif elem_type == TAG_COPY2:
+            length_header_size += 3
+            if length_header_size > src_len:
                 raise CorruptError
-            length = 1 + (src[s - 3] >> 2)
-            offset = src[s - 2] | (src[s - 1] << 8)
+            length = 1 + (src[length_header_size - 3] >> 2)
+            offset = src[length_header_size - 2] | (src[length_header_size - 1] << 8)
 
-        elif b == TAG_COPY4:
+        elif elem_type == TAG_COPY4:
             raise BaseSnappyError("Unsupported COPY_4 tag")
 
         end = d + length
@@ -293,50 +301,54 @@ def compress(buf: bytes) -> Iterable[int]:
     table = [0] * MAX_TABLE_SIZE
 
     # Iterate over the source bytes.
-    s = 0  # The iterator position.
-    t = 0  # The last position with the same hash as s.
-    lit = 0  # The start position of any pending literal bytes.
+    iter_pos = 0  # The iterator position.
+    last_matching_hash_pos = 0  # The last position with the same hash as s.
+    literal_start_pos = 0  # The start position of any pending literal bytes.
 
-    while s + 3 < src_len:
+    while iter_pos + 3 < src_len:
         # Update the hash table.
-        b0, b1, b2, b3 = src[s : s + 4]  # noqa: E203
-        h = uint32(b0) | (uint32(b1) << 8) | (uint32(b2) << 16) | (uint32(b3) << 24)
-        p = uint32(h * 0x1E35A7BD) >> shift
+        b0, b1, b2, b3 = src[iter_pos : iter_pos + 4]  # noqa: E203
+        hash_code = (
+            uint32(b0) | (uint32(b1) << 8) | (uint32(b2) << 16) | (uint32(b3) << 24)
+        )
+        hash_bucket = uint32(hash_code * 0x1E35A7BD) >> shift
 
         # We need to to store values in [-1, inf) in table. To save
         # some initialization time, (re)use the table's zero value
         # and shift the values against this zero: add 1 on writes,
         # subtract 1 on reads.
-        t, table[p] = table[p] - 1, s + 1
+        last_matching_hash_pos = table[hash_bucket] - 1
+        table[hash_bucket] = iter_pos
 
         if (
-            t < 0
-            or s - t >= MAX_OFFSET  # noqa: W503
-            or b0 != src[t]  # noqa: W503
-            or b1 != src[t + 1]  # noqa: W503
-            or b2 != src[t + 2]  # noqa: W503
-            or b3 != src[t + 3]  # noqa: W503
+            last_matching_hash_pos < 0
+            or iter_pos - last_matching_hash_pos >= MAX_OFFSET  # noqa: W503
+            or b0 != src[last_matching_hash_pos]  # noqa: W503
+            or b1 != src[last_matching_hash_pos + 1]  # noqa: W503
+            or b2 != src[last_matching_hash_pos + 2]  # noqa: W503
+            or b3 != src[last_matching_hash_pos + 3]  # noqa: W503
         ):
             # If t is invalid or src[s:s+4] differs from src[t:t+4], accumulate a literal byte.
-            s += 1
+            iter_pos += 1
             continue
 
-        elif lit != s:
+        elif literal_start_pos != iter_pos:
             # Otherwise, we have a match. First, emit any pending literal bytes.
-            yield from emit_literal(src[lit:s])
+            yield from emit_literal(src[literal_start_pos:iter_pos])
 
         # Extend the match to be as long as possible.
-        s0 = s
-        s, t = s + 4, t + 4
+        s0 = iter_pos
+        iter_pos = iter_pos + 4
+        last_matching_hash_pos = last_matching_hash_pos + 4
 
-        while s < src_len and src[s] == src[t]:
-            s += 1
-            t += 1
+        while iter_pos < src_len and src[iter_pos] == src[last_matching_hash_pos]:
+            iter_pos += 1
+            last_matching_hash_pos += 1
 
         # Emit the copied bytes.
-        yield from emit_copy(s - t, s - s0)
-        lit = s
+        yield from emit_copy(iter_pos - last_matching_hash_pos, iter_pos - s0)
+        literal_start_pos = iter_pos
 
     # Emit any final pending literal bytes and return.
-    if lit != src_len:
-        yield from emit_literal(src[lit:])
+    if literal_start_pos != src_len:
+        yield from emit_literal(src[literal_start_pos:])
