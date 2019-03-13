@@ -41,7 +41,7 @@ extras_require['dev'] = (
 setup(
     name='py-snappy',
     # *IMPORTANT*: Don't manually change the version here. Use `make bump`, as described in readme
-    version='0.1.0-alpha.0',
+    version='0.1.0-alpha.1',
     description="""py-snappy: A pure python implementation of the Snappy compression algorithm""",
     long_description_markdown_filename='README.md',
     author='Jason Carver',
