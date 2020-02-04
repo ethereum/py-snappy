@@ -214,7 +214,13 @@ C240 = 60 << 2
 C244 = 61 << 2
 C248 = 62 << 2
 C252 = 63 << 2
+
+C8 = 1 << 3
+C64 = 1 << 6
+C256 = 1 << 8
+C2048 = 1 << 11
 C65536 = 1 << 16
+C16777216 = 1 << 24
 C4294967296 = 1 << 32
 
 
@@ -225,14 +231,14 @@ def emit_literal(lit: bytes) -> Iterable[int]:
 
     if n < 60:
         yield (uint8(n) << 2) | TAG_LITERAL
-    elif n < C240:
+    elif n < C256:
         yield C240 | TAG_LITERAL
         yield uint8(n)
-    elif n < C244:
+    elif n < C65536:
         yield C244 | TAG_LITERAL
         yield uint8(n)
         yield uint8(n >> 8)
-    elif n < C65536:
+    elif n < C16777216:
         yield C248 | TAG_LITERAL
         yield uint8(n)
         yield uint8(n >> 8)
@@ -247,12 +253,6 @@ def emit_literal(lit: bytes) -> Iterable[int]:
         raise BaseSnappyError("Source buffer is too long")
 
     yield from lit
-
-
-C8 = 1 << 3
-C64 = 1 << 6
-C256 = 1 << 8
-C2048 = 1 << 11
 
 
 @tuple_gen
