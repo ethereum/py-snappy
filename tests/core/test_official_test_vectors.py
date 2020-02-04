@@ -2,11 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from hypothesis import (
-    given,
-    strategies as st,
-    settings,
-)
+from hypothesis import given, strategies as st, settings
 import py_snappy
 from py_snappy import BaseSnappyError, compress, decompress
 from snappy import (
@@ -47,9 +43,7 @@ FIXTURES_TO_COMPRESS = (
 )
 
 
-fixture_st = st.sampled_from(
-    FIXTURES_TO_COMPRESS,
-).map(load_fixture)
+fixture_st = st.sampled_from(FIXTURES_TO_COMPRESS).map(load_fixture)
 
 
 @st.composite
@@ -60,8 +54,11 @@ def fixture_data(draw, fixture_st=fixture_st):
     return fixture_bytes[slice]
 
 
+MAX_EXAMPLES = 100
+
+
 @given(fixture_data=fixture_data())
-@settings(max_examples=100, deadline=None)  # takes a long time.
+@settings(max_examples=MAX_EXAMPLES, deadline=None)  # takes a long time.
 def test_compression_round_trip_of_official_test_fixtures(fixture_data):
     intermediate = compress(fixture_data)
     actual = decompress(intermediate)
@@ -69,7 +66,7 @@ def test_compression_round_trip_of_official_test_fixtures(fixture_data):
 
 
 @given(fixture_data=fixture_data())
-@settings(max_examples=100, deadline=None)  # takes a long time.
+@settings(max_examples=MAX_EXAMPLES, deadline=None)  # takes a long time.
 def test_decompress_libsnappy_compressed_test_fixture(fixture_data):
     intermediate = libsnappy_compress(fixture_data)
     actual = decompress(intermediate)
@@ -77,7 +74,7 @@ def test_decompress_libsnappy_compressed_test_fixture(fixture_data):
 
 
 @given(fixture_data=fixture_data())
-@settings(max_examples=100, deadline=None)  # takes a long time.
+@settings(max_examples=MAX_EXAMPLES, deadline=None)  # takes a long time.
 def test_libsnapp_decompress_compressed_test_fixture(fixture_data):
     intermediate = compress(fixture_data)
     actual = libsnappy_decompress(intermediate)

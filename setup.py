@@ -7,10 +7,10 @@ from setuptools import (
 
 extras_require = {
     'test': [
-        "pytest>=3.6.0",
-        "pytest-xdist",
-        "tox>=2.9.1,<3",
-        "hypothesis==3.74.3",
+        "pytest>=5.3.5,<5.4",
+        "pytest-xdist==1.31.0",
+        "tox>=3.14.3,<4",
+        "hypothesis==5.4.1",
         "python-snappy>=0.5.3,<1",
     ],
     'lint': [
