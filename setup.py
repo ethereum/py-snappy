@@ -49,7 +49,7 @@ setup(
     url='https://github.com/ethereum/py-snappy',
     include_package_data=True,
     install_requires=[],
-    setup_requires=[''],
+    setup_requires=[],
     python_requires='>=3.6, <4',
     extras_require=extras_require,
     py_modules=['py_snappy'],
